@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#111111" />
+  <title>MSpace Time Counter</title>
+  <style>
+    :root {
+      --ink: #141414;
+      --muted: #77736b;
+      --line: #e8e4dc;
+      --paper: #f8f7f4;
+      --card: #ffffff;
+      --gold: #d99c2b;
+      --gold-soft: #fff3d9;
+      --green: #218454;
+      --green-soft: #e9f7ef;
+      --red: #bf4f42;
+      --shadow: 0 18px 45px rgba(20,20,20,.06);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: var(--paper); }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .app-shell { min-height: 100vh; display: grid; grid-template-columns: 248px minmax(0, 1fr); }
+    aside { background: var(--ink); color: #fff; padding: 24px 18px; display: flex; flex-direction: column; }
+    .brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 36px; }
+    .logo-frame { width: 42px; height: 42px; overflow: hidden; border-radius: 9px; background: #050505; position: relative; flex: 0 0 auto; }
+    .logo-frame img { position: absolute; width: 190%; height: 190%; max-width: none; left: -45%; top: -45%; }
+    .brand strong { font-size: 17px; letter-spacing: -.02em; }
+    .brand small { display: block; color: #9c9a95; font-size: 10px; text-transform: uppercase; letter-spacing: .15em; margin-top: 3px; }
+    .nav-label { color: #77746f; text-transform: uppercase; letter-spacing: .14em; font-size: 10px; padding: 0 12px 10px; }
+    nav { display: grid; gap: 5px; }
+    .nav-item { border: 0; color: #a7a49d; background: transparent; text-align: left; padding: 12px; border-radius: 9px; display: flex; align-items: center; gap: 11px; font-size: 13px; }
+    .nav-item:hover, .nav-item.active { background: #292927; color: #fff; }
+    .nav-item.active { box-shadow: inset 3px 0 0 var(--gold); }
+    .nav-item svg { width: 17px; height: 17px; opacity: .8; }
+    .sidebar-foot { margin-top: auto; border-top: 1px solid #2c2c29; padding: 20px 8px 2px; color: #85827b; font-size: 11px; line-height: 1.5; }
+    .sidebar-foot b { display: block; color: #fff; font-weight: 500; margin-bottom: 2px; }
+    main { min-width: 0; }
+    .topbar { height: 80px; background: rgba(255,255,255,.84); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; padding: 0 40px; }
+    .eyebrow { text-transform: uppercase; letter-spacing: .15em; font-size: 10px; color: var(--gold); font-weight: 700; }
+    .topbar h1 { margin: 5px 0 0; font-size: 21px; letter-spacing: -.04em; }
+    .top-actions { display: flex; align-items: center; gap: 14px; }
+    .date-chip { color: var(--muted); font-size: 12px; padding-right: 9px; border-right: 1px solid var(--line); }
+    .user-chip { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--gold-soft); color: #875d10; display: grid; place-items: center; font-weight: 700; }
+    .content { padding: 32px 40px 52px; max-width: 1480px; margin: auto; }
+    .welcome { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 23px; }
+    .welcome h2 { margin: 5px 0 0; font-size: 30px; letter-spacing: -.05em; }
+    .welcome p { color: var(--muted); margin: 8px 0 0; font-size: 13px; }
+    .ghost-button, .primary-button, .secondary-button { border-radius: 8px; padding: 11px 15px; border: 1px solid var(--line); background: #fff; color: var(--ink); font-size: 12px; font-weight: 600; }
+    .ghost-button:hover, .secondary-button:hover { border-color: #c7c0b2; background: #fcfbf8; }
+    .primary-button { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .primary-button:hover { background: #2f2e2a; }
+    .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+    .stat-card { background: var(--card); border: 1px solid var(--line); border-radius: 11px; padding: 18px; box-shadow: var(--shadow); }
+    .stat-card .label { font-size: 11px; color: var(--muted); display: flex; align-items: center; justify-content: space-between; }
+    .stat-card .value { font-size: 25px; font-weight: 650; letter-spacing: -.05em; margin-top: 14px; }
+    .stat-card .trend { color: var(--green); font-size: 10px; margin-top: 7px; }
+    .stat-card .trend.neutral { color: var(--muted); }
+    .grid-main { display: grid; grid-template-columns: minmax(0, 1.37fr) minmax(320px, .83fr); gap: 18px; align-items: start; }
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 11px; box-shadow: var(--shadow); }
+    .panel-head { display: flex; justify-content: space-between; align-items: center; padding: 19px 20px; border-bottom: 1px solid var(--line); }
+    .panel-head h3 { margin: 0; font-size: 14px; letter-spacing: -.01em; }
+    .panel-head p { color: var(--muted); font-size: 11px; margin: 5px 0 0; }
+    .scanner-panel { padding-bottom: 20px; }
+    .scanner-body { padding: 20px; }
+    .scan-box { border: 1px solid #d9d4ca; background: #fbfaf7; border-radius: 10px; padding: 18px; display: flex; gap: 14px; align-items: center; }
+    .rfid-icon { width: 44px; height: 44px; flex: 0 0 auto; border-radius: 10px; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); }
+    .rfid-icon svg { width: 24px; height: 24px; }
+    .scan-box input { border: 0; outline: 0; background: transparent; width: 100%; color: var(--ink); font-size: 14px; }
+    .scan-box input::placeholder { color: #aaa59b; }
+    .scan-note { font-size: 11px; color: var(--muted); margin: 11px 0 0 59px; }
+    .scan-actions { display: flex; gap: 9px; margin: 14px 0 0 59px; }
+    .scan-actions button { min-width: 112px; }
+    .scan-actions .selected { background: var(--gold); border-color: var(--gold); color: #fff; }
+    .live-list { margin-top: 22px; }
+    .list-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 11px; }
+    .list-title h4 { margin: 0; font-size: 12px; }
+    .count-pill { background: var(--green-soft); color: var(--green); font-size: 10px; padding: 4px 7px; border-radius: 20px; font-weight: 700; }
+    .session-row { display: grid; grid-template-columns: 2fr 1.15fr .8fr 76px; gap: 10px; align-items: center; padding: 13px 0; border-top: 1px solid #f0ede7; }
+    .person { display: flex; gap: 10px; align-items: center; min-width: 0; }
+    .person-avatar { width: 31px; height: 31px; border-radius: 50%; background: #eeeae2; color: #4c4943; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex: 0 0 auto; }
+    .person b { font-size: 12px; font-weight: 650; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .person span, .session-row .sub { color: var(--muted); font-size: 10px; display: block; margin-top: 3px; }
+    .status { color: var(--green); font-size: 10px; font-weight: 700; }
+    .checkout { border: 1px solid #ebd6d2; background: #fffafa; color: var(--red); border-radius: 6px; padding: 7px 8px; font-size: 10px; font-weight: 700; }
+    .checkout:hover { background: #fff1ef; }
+    .empty { text-align: center; border: 1px dashed #ddd8ce; border-radius: 8px; padding: 22px 12px; color: var(--muted); font-size: 11px; }
+    .form-panel { overflow: hidden; }
+    .form-body { padding: 20px; }
+    .form-intro { background: var(--ink); color: white; border-radius: 8px; padding: 15px; margin-bottom: 19px; display: flex; align-items: center; gap: 11px; }
+    .form-intro svg { color: var(--gold); width: 20px; }
+    .form-intro strong { font-size: 12px; display: block; }
+    .form-intro span { color: #aaa7a0; display: block; font-size: 10px; margin-top: 3px; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .field { display: grid; gap: 6px; }
+    .field.full { grid-column: 1 / -1; }
+    label { font-size: 10px; font-weight: 700; color: #656159; text-transform: uppercase; letter-spacing: .08em; }
+    input, select, textarea { width: 100%; border: 1px solid #dedad2; background: #fff; border-radius: 7px; padding: 10px 11px; outline: none; font-size: 12px; color: var(--ink); }
+    textarea { resize: vertical; min-height: 62px; }
+    input:focus, select:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(217,156,43,.12); }
+    .rate-preview { margin-top: 17px; padding: 13px; border-radius: 8px; background: #fbf7ec; border: 1px solid #f2e4bf; display: flex; justify-content: space-between; align-items: center; }
+    .rate-preview span { color: #8a7650; font-size: 10px; }
+    .rate-preview strong { font-size: 16px; }
+    .rate-preview small { display: block; color: var(--muted); font-size: 9px; margin-top: 3px; text-align: right; }
+    .form-actions { display: flex; gap: 9px; margin-top: 18px; }
+    .form-actions button { flex: 1; }
+    .report-panel { margin-top: 18px; }
+    .report-tools { display: flex; align-items: center; gap: 8px; }
+    .report-tools button { padding: 7px 10px; font-size: 10px; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; min-width: 680px; }
+    th { text-align: left; padding: 11px 20px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; background: #fcfbf8; }
+    td { padding: 13px 20px; border-top: 1px solid #f0ede7; font-size: 11px; }
+    td.muted { color: var(--muted); }
+    td.amount { font-weight: 700; }
+    .tag { background: #f2f0eb; border-radius: 4px; padding: 4px 6px; color: #5c5952; font-size: 10px; }
+    .toast { position: fixed; right: 24px; bottom: 24px; background: var(--ink); color: #fff; padding: 13px 16px; border-radius: 8px; font-size: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.18); transform: translateY(20px); opacity: 0; pointer-events: none; transition: .25s ease; }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(20,20,20,.48); display: grid; place-items: center; padding: 20px; opacity: 0; pointer-events: none; transition: .2s ease; z-index: 10; }
+    .modal-backdrop.show { opacity: 1; pointer-events: auto; }
+    .payment-modal { width: min(390px, 100%); background: #fff; border-radius: 14px; box-shadow: 0 25px 70px rgba(0,0,0,.22); overflow: hidden; transform: translateY(10px); transition: .2s ease; }
+    .modal-backdrop.show .payment-modal { transform: translateY(0); }
+    .payment-modal-head { background: var(--ink); color: #fff; padding: 22px 22px 20px; position: relative; }
+    .success-mark { width: 34px; height: 34px; border-radius: 50%; background: var(--green); display: grid; place-items: center; margin-bottom: 14px; }
+    .success-mark svg { width: 18px; height: 18px; }
+    .payment-modal-head h3 { margin: 0; font-size: 18px; letter-spacing: -.04em; }
+    .payment-modal-head p { color: #b8b5ae; margin: 5px 0 0; font-size: 11px; }
+    .payment-modal-body { padding: 20px 22px 22px; }
+    .amount-label { color: var(--muted); text-transform: uppercase; letter-spacing: .12em; font-size: 10px; font-weight: 700; }
+    .amount-due { font-size: 34px; font-weight: 700; letter-spacing: -.06em; margin-top: 5px; }
+    .payment-details { border-top: 1px solid var(--line); margin-top: 17px; padding-top: 13px; display: grid; gap: 9px; }
+    .payment-detail { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 11px; }
+    .payment-detail strong { color: var(--ink); font-weight: 650; text-align: right; }
+    .modal-close { width: 100%; margin-top: 19px; }
+    .mobile-menu { display: none; }
+    @media (max-width: 980px) { .app-shell { grid-template-columns: 72px minmax(0, 1fr); } aside { padding: 20px 10px; } .brand { padding: 0 5px 32px; justify-content: center; } .brand > div:not(.logo-frame), .nav-label, .nav-item span, .sidebar-foot { display: none; } .nav-item { justify-content: center; padding: 12px 8px; } .topbar, .content { padding-left: 24px; padding-right: 24px; } }
+    @media (max-width: 720px) { .app-shell { display: block; } aside { display: none; } .topbar { height: 68px; padding: 0 18px; } .topbar h1 { font-size: 18px; } .date-chip { display: none; } .content { padding: 22px 16px 36px; } .welcome { align-items: flex-start; gap: 14px; flex-direction: column; } .welcome h2 { font-size: 26px; } .stat-grid { grid-template-columns: 1fr 1fr; } .grid-main { grid-template-columns: 1fr; } .session-row { grid-template-columns: 1.6fr .9fr 65px; } .session-row > div:nth-child(3) { display: none; } .field-grid { grid-template-columns: 1fr; } .field.full { grid-column: auto; } .mobile-menu { display: block; border: 0; background: transparent; margin-right: 8px; } .mobile-menu svg { width: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside>
+      <div class="brand">
+        <div class="logo-frame"><img src="Mspace_logo.png" alt="MSpace logo"></div>
+        <div><strong>MSpace</strong><small>Time Counter</small></div>
+      </div>
+      <div class="nav-label">Workspace</div>
+      <nav>
+        <button class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Overview</span></button>
+        <button class="nav-item" id="nav-report"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19V5M4 19h17"/><path d="m7 15 3-4 3 2 5-7"/></svg><span>Income report</span></button>
+        <button class="nav-item" id="nav-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"/><path d="m19.4 15 .1.1a1.7 1.7 0 0 1-2.4 2.4l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a1.7 1.7 0 0 1-3.4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1a1.7 1.7 0 1 1-2.4-2.4l.1-.1A1.7 1.7 0 0 0 6.2 12a1.7 1.7 0 0 0-1.2-2.9h-.2a1.7 1.7 0 0 1 0-3.4H5A1.7 1.7 0 0 0 6.2 2.8l-.1-.1a1.7 1.7 0 0 1 2.4-2.4l.1.1A1.7 1.7 0 0 0 11.5 1h.2a1.7 1.7 0 0 1 3.4 0v.2A1.7 1.7 0 0 0 18 2.4l.1-.1a1.7 1.7 0 1 1 2.4 2.4l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a1.7 1.7 0 0 1 0 3.4h-.2a1.7 1.7 0 0 0-1.2 2.9Z" transform="translate(1 4) scale(.82)"/></svg><span>Rate settings</span></button>
+      </nav>
+      <div class="sidebar-foot"><b>MSpace Mlang</b>Front desk console<br>Local data mode</div>
+    </aside>
+    <main>
+      <header class="topbar">
+        <div style="display:flex;align-items:center"><button class="mobile-menu" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><div><div class="eyebrow">Front desk / live</div><h1>Time Counter</h1></div></div>
+        <div class="top-actions"><div class="date-chip" id="today-label"></div><div class="user-chip"><div class="avatar">FD</div><span>Front desk</span></div></div>
+      </header>
+      <section class="content">
+        <div class="welcome"><div><div class="eyebrow">Daily overview</div><h2>Good day, front desk.</h2><p>Tap an RFID card to start or end a customer session.</p></div><button class="ghost-button" id="clear-data">Clear local data</button></div>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="label">Today's income <span>₱</span></div><div class="value" id="income-total">₱0.00</div><div class="trend" id="income-sub">Completed sessions</div></div>
+          <div class="stat-card"><div class="label">Active now <span>◉</span></div><div class="value" id="active-total">0</div><div class="trend neutral">Currently checked in</div></div>
+          <div class="stat-card"><div class="label">Sessions today <span>↗</span></div><div class="value" id="session-total">0</div><div class="trend neutral">Check-ins recorded</div></div>
+          <div class="stat-card"><div class="label">Average ticket <span>∅</span></div><div class="value" id="average-total">₱0.00</div><div class="trend neutral">Per completed visit</div></div>
+        </div>
+        <div class="grid-main">
+          <section class="panel scanner-panel">
+            <div class="panel-head"><div><h3>RFID activity</h3><p>Reader status: ready for UID input</p></div><span class="status">● Online</span></div>
+            <div class="scanner-body">
+              <div class="scan-box"><div class="rfid-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 8.5a9 9 0 0 0 0 7M8 10.5a5 5 0 0 0 0 3M11 12a1 1 0 0 0 0 0"/><path d="M15 8.5a9 9 0 0 1 0 7M18 6a13 13 0 0 1 0 12"/></svg></div><input id="rfid-input" autocomplete="off" placeholder="Select Check-in or Check-out, then tap RFID" /></div>
+              <div class="scan-actions"><button class="primary-button selected" id="checkin-action">Check-in</button><button class="secondary-button" id="checkout-action">Check-out</button></div>
+              <div class="scan-note" id="scan-note">Check-in selected. Tap an RFID card to start a session.</div>
+              <div class="live-list"><div class="list-title"><h4>Currently checked in</h4><span class="count-pill" id="active-pill">0 active</span></div><div id="active-list"></div></div>
+            </div>
+          </section>
+          <section class="panel form-panel" id="customer-panel">
+            <div class="panel-head"><div><h3 id="form-heading">New customer</h3><p id="form-subheading">Register a card to begin a session</p></div><span class="eyebrow" id="uid-label">No UID</span></div>
+            <div class="form-body">
+              <div class="form-intro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0"/></svg><div><strong id="form-tip">Scan an RFID card to get started</strong><span>Customer information is stored on this device.</span></div></div>
+              <form id="customer-form">
+                <div class="field-grid">
+                  <div class="field"><label for="name">Full name</label><input id="name" required placeholder="e.g. Alex Santos" /></div>
+                  <div class="field"><label for="type">Customer type</label><select id="type"><option value="regular">Regular</option><option value="student">Student</option><option value="teacher">Teacher</option></select></div>
+                  <div class="field"><label for="email">Email</label><input id="email" type="email" required placeholder="alex@email.com" /></div>
+                  <div class="field"><label for="phone">Number</label><input id="phone" required placeholder="09XX XXX XXXX" /></div>
+                  <div class="field full"><label for="address">Address</label><textarea id="address" required placeholder="Street, city, province"></textarea></div>
+                </div>
+                <div class="rate-preview"><div><span>Applied hourly rate</span><strong id="applied-rate">₱30.00 / hour</strong></div><div><span id="adjustment-label">Regular rate</span><small>Prorated per minute</small></div></div>
+                <div class="form-actions"><button type="button" class="secondary-button" id="cancel-form">Cancel</button><button type="submit" class="primary-button" id="start-button">Check in &amp; start timer</button></div>
+              </form>
+            </div>
+          </section>
+        </div>
+        <section class="panel report-panel" id="report-panel">
+          <div class="panel-head"><div><h3>Income report</h3><p>Completed sessions for this device</p></div><div class="report-tools"><button class="secondary-button" id="sheets-export">Google Sheets</button><button class="primary-button" id="csv-export">Export .CSV</button></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Customer</th><th>RFID UID</th><th>Check-in</th><th>Check-out</th><th>Duration</th><th>Rate</th><th>Amount</th></tr></thead><tbody id="report-body"></tbody></table></div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <div class="modal-backdrop" id="payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-modal-title" aria-hidden="true">
+    <div class="payment-modal">
+      <div class="payment-modal-head"><div class="success-mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12 4 4L19 6"/></svg></div><h3 id="payment-modal-title">Checkout successful</h3><p id="payment-modal-subtitle">Session closed and added to today’s report.</p></div>
+      <div class="payment-modal-body"><div class="amount-label">Total amount to be paid</div><div class="amount-due" id="payment-amount">₱0.00</div><div class="payment-details"><div class="payment-detail"><span>Customer</span><strong id="payment-customer">—</strong></div><div class="payment-detail"><span>Duration</span><strong id="payment-duration">—</strong></div><div class="payment-detail"><span>Applied rate</span><strong id="payment-rate">—</strong></div></div><button class="primary-button modal-close" id="close-payment-modal">Done</button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script>
+    const STORAGE_KEY = 'mspace-time-counter-v1';
+    const DEFAULT_STATE = { baseRate: 30, adjustment: 10, customers: {}, active: {}, completed: [] };
+    let state = loadState();
+    let selectedUid = '';
+    let scanMode = 'checkin';
+    let toastTimer;
+    const $ = (id) => document.getElementById(id);
+    const peso = (n) => '₱' + Number(n || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const dateTime = (iso) => new Date(iso).toLocaleString('en-PH', { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+    const initials = (name) => name.split(' ').filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase() || '?';
+    function loadState() { try { const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); const loaded = { ...DEFAULT_STATE, ...stored }; if (stored.baseRate === 50 && stored.adjustment === 10) loaded.baseRate = 30; return loaded; } catch { return { ...DEFAULT_STATE }; } }
+    function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    function notify(message) { clearTimeout(toastTimer); $('toast').textContent = message; $('toast').classList.add('show'); toastTimer = setTimeout(() => $('toast').classList.remove('show'), 3000); }
+    function showPaymentModal(session) { $('payment-amount').textContent = peso(session.amount); $('payment-customer').textContent = session.customer.name; $('payment-duration').textContent = durationText(session.minutes); $('payment-rate').textContent = peso(session.rate) + ' / hour'; $('payment-modal').classList.add('show'); $('payment-modal').setAttribute('aria-hidden', 'false'); $('close-payment-modal').focus(); }
+    function hidePaymentModal() { $('payment-modal').classList.remove('show'); $('payment-modal').setAttribute('aria-hidden', 'true'); $('rfid-input').focus(); }
+    function rateFor(type) { return state.baseRate * (type === 'student' || type === 'teacher' ? 1 - state.adjustment / 100 : 1); }
+    function durationMinutes(start, end = new Date()) { return Math.max(1, Math.ceil((new Date(end) - new Date(start)) / 60000)); }
+    function durationText(minutes) { const h = Math.floor(minutes / 60), m = minutes % 60; return h ? h + 'h ' + String(m).padStart(2,'0') + 'm' : m + 'm'; }
+    function isToday(iso) { return new Date(iso).toDateString() === new Date().toDateString(); }
+    function render() {
+      const activeEntries = Object.entries(state.active);
+      const todayCompleted = state.completed.filter(x => isToday(x.checkout));
+      const total = todayCompleted.reduce((a,x) => a + x.amount, 0);
+      $('income-total').textContent = peso(total); $('active-total').textContent = activeEntries.length; $('session-total').textContent = todayCompleted.length + activeEntries.filter(([_,x]) => isToday(x.checkin)).length; $('average-total').textContent = peso(todayCompleted.length ? total / todayCompleted.length : 0); $('income-sub').textContent = todayCompleted.length + ' completed ' + (todayCompleted.length === 1 ? 'session' : 'sessions'); $('active-pill').textContent = activeEntries.length + ' active';
+      $('active-list').innerHTML = activeEntries.length ? activeEntries.map(([uid, s]) => `<div class="session-row"><div class="person"><div class="person-avatar">${initials(s.customer.name)}</div><div><b>${esc(s.customer.name)}</b><span>${esc(uid)} · ${s.customer.type}</span></div></div><div><span class="status">● Active</span><span class="sub">${dateTime(s.checkin)}</span></div><div><b>${durationText(durationMinutes(s.checkin))}</b><span class="sub">${peso(rateFor(s.customer.type))}/hr</span></div><button class="checkout" data-checkout="${esc(uid)}">Check out</button></div>`).join('') : '<div class="empty">No active sessions. Scan a card to check someone in.</div>';
+      $('report-body').innerHTML = todayCompleted.length ? todayCompleted.slice().reverse().map(s => `<tr><td><b>${esc(s.customer.name)}</b><br><span class="muted">${esc(s.customer.email)}</span></td><td class="muted">${esc(s.uid)}</td><td class="muted">${dateTime(s.checkin)}</td><td class="muted">${dateTime(s.checkout)}</td><td>${durationText(s.minutes)}</td><td><span class="tag">${peso(s.rate)}/hr</span></td><td class="amount">${peso(s.amount)}</td></tr>`).join('') : '<tr><td colspan="7"><div class="empty">Completed sessions will appear here.</div></td></tr>';
+      document.querySelectorAll('[data-checkout]').forEach(b => b.addEventListener('click', () => checkout(b.dataset.checkout)));
+    }
+    function esc(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])); }
+    function fillForm(uid) {
+      selectedUid = uid.toUpperCase(); $('uid-label').textContent = selectedUid;
+      const customer = state.customers[selectedUid];
+      if (customer) { $('form-heading').textContent = 'Returning customer'; $('form-subheading').textContent = 'Review details before starting'; $('form-tip').textContent = customer.name + ' · ' + customer.type; ['name','email','phone','address'].forEach(id => $(id).value = customer[id] || ''); $('type').value = customer.type; $('start-button').textContent = 'Check in & start timer'; }
+      else { $('form-heading').textContent = 'New customer'; $('form-subheading').textContent = 'Register a card to begin a session'; $('form-tip').textContent = 'Card detected — add customer details'; $('customer-form').reset(); }
+      updateRate(); $('name').focus(); $('customer-panel').scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+    function setScanMode(mode, announce = true) {
+      scanMode = mode; $('checkin-action').classList.toggle('selected', mode === 'checkin'); $('checkout-action').classList.toggle('selected', mode === 'checkout');
+      $('scan-note').textContent = mode === 'checkin' ? 'Check-in selected. Tap an RFID card to start a session.' : 'Check-out selected. Tap an active RFID card to calculate the amount.';
+      $('rfid-input').placeholder = mode === 'checkin' ? 'Scan RFID card or enter UID to check in' : 'Scan RFID card or enter UID to check out';
+      if (announce) { notify(mode === 'checkin' ? 'Check-in ready' : 'Check-out ready'); $('rfid-input').focus(); }
+    }
+    function resetCustomerForm() { selectedUid = ''; $('customer-form').reset(); $('uid-label').textContent = 'No UID'; $('form-heading').textContent = 'New customer'; $('form-subheading').textContent = 'Register a card to begin a session'; $('form-tip').textContent = 'Scan an RFID card to get started'; updateRate(); }
+    function handleScan(raw) {
+      const uid = raw.trim().toUpperCase(); if (!uid) return;
+      $('rfid-input').value = '';
+      if (scanMode === 'checkout') { if (state.active[uid]) checkout(uid); else notify('No active session found for ' + uid); return; }
+      if (state.active[uid]) { notify(state.active[uid].customer.name + ' is already checked in'); return; }
+      if (state.customers[uid]) { startSession(uid, state.customers[uid]); return; }
+      fillForm(uid);
+    }
+    function startSession(uid, customer) { state.active[uid] = { customer, checkin:new Date().toISOString() }; saveState(); render(); notify(customer.name + ' checked in — timer started'); resetCustomerForm(); $('rfid-input').focus(); }
+    function checkout(uid) {
+      const active = state.active[uid]; if (!active) return;
+      const checkoutAt = new Date().toISOString(), minutes = durationMinutes(active.checkin, checkoutAt), rate = rateFor(active.customer.type), amount = Math.round(rate * minutes / 60 * 100) / 100;
+      const completedSession = { uid, customer: active.customer, checkin: active.checkin, checkout: checkoutAt, minutes, rate, amount }; state.completed.push(completedSession); delete state.active[uid]; saveState(); render(); notify(active.customer.name + ' checked out · ' + peso(amount)); showPaymentModal(completedSession);
+      resetCustomerForm(); setScanMode('checkin', false);
+    }
+    function updateRate() { const type = $('type').value, isAdjusted = type === 'student' || type === 'teacher'; $('applied-rate').textContent = peso(rateFor(type)) + ' / hour'; $('adjustment-label').textContent = isAdjusted ? type[0].toUpperCase() + type.slice(1) + ' rate · -' + state.adjustment + '% discount' : 'Regular rate'; }
+    $('rfid-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleScan(e.target.value); });
+    $('checkin-action').addEventListener('click', () => setScanMode('checkin'));
+    $('checkout-action').addEventListener('click', () => setScanMode('checkout'));
+    $('close-payment-modal').addEventListener('click', hidePaymentModal);
+    $('payment-modal').addEventListener('click', e => { if (e.target.id === 'payment-modal') hidePaymentModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('payment-modal').classList.contains('show')) hidePaymentModal(); });
+    $('type').addEventListener('change', updateRate);
+    $('cancel-form').addEventListener('click', () => { resetCustomerForm(); $('rfid-input').focus(); });
+    $('customer-form').addEventListener('submit', e => { e.preventDefault(); if (!selectedUid) { notify('Scan an RFID card first'); $('rfid-input').focus(); return; } const customer = { name:$('name').value.trim(), email:$('email').value.trim(), phone:$('phone').value.trim(), address:$('address').value.trim(), type:$('type').value }; state.customers[selectedUid] = customer; startSession(selectedUid, customer); });
+    function exportRows() { return state.completed.filter(x => isToday(x.checkout)).map(x => [x.customer.name,x.customer.email,x.customer.address,x.customer.phone,x.customer.type,x.uid,x.checkin,x.checkout,x.minutes,x.rate.toFixed(2),x.amount.toFixed(2)]); }
+    function csvText(rows, separator = ',') { const headers = ['Customer','Email','Address','Number','Customer type','RFID UID','Check-in','Check-out','Minutes','Rate / hour (PHP)','Amount (PHP)']; return [headers,...rows].map(row => row.map(v => '"' + String(v ?? '').replaceAll('"','""') + '"').join(separator)).join('\n'); }
+    $('csv-export').addEventListener('click', () => { const blob = new Blob([csvText(exportRows())], {type:'text/csv;charset=utf-8'}), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mspace-income-' + new Date().toISOString().slice(0,10) + '.csv'; a.click(); URL.revokeObjectURL(a.href); notify('CSV report downloaded'); });
+    $('sheets-export').addEventListener('click', async () => { const tsv = csvText(exportRows(), '\t'); try { await navigator.clipboard.writeText(tsv); notify('Sheets-ready data copied — paste into Google Sheets'); } catch { notify('Select and copy was blocked by the browser'); } window.open('https://sheets.new', '_blank', 'noopener'); });
+    $('clear-data').addEventListener('click', () => { if (confirm('Clear all local customer and income data?')) { state = {...DEFAULT_STATE, customers:{},active:{},completed:[]}; saveState(); render(); notify('Local data cleared'); } });
+    $('nav-report').addEventListener('click', () => $('report-panel').scrollIntoView({behavior:'smooth'}));
+    $('nav-settings').addEventListener('click', () => { const next = prompt('Base hourly rate in PHP', state.baseRate); if (next !== null && !isNaN(next) && Number(next) > 0) { state.baseRate = Number(next); const adj = prompt('Student / teacher discount (%)', state.adjustment); if (adj !== null && !isNaN(adj) && Number(adj) >= 0 && Number(adj) < 100) state.adjustment = Number(adj); saveState(); render(); updateRate(); notify('Rate settings updated'); } });
+    $('today-label').textContent = new Date().toLocaleDateString('en-PH', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+    render(); updateRate(); setInterval(render, 30000); $('rfid-input').focus();
+  </script>
+</body>
+</html>
