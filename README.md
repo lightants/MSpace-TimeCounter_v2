@@ -6,6 +6,7 @@ Shared operations workbook: [MSpace-TimeCounter_v2 — Mlang Live Operations](ht
 
 - Select **Check-in**, tap/type an RFID UID, and complete the customer form for a new customer. Known customers start their timer immediately.
 - Select **Check-out**, tap/type the active customer’s RFID UID, and the app calculates the amount from elapsed time.
+- If an RFID/timer issue occurs, enable **Use manual check-in time**, choose the correct past date/time, then scan the card. Normal check-ins still use the current time automatically.
 - Default rate: ₱30/hour, prorated per minute. No student or teacher discount is applied.
 - Data is stored locally in the browser until the Google Sheets connector is configured.
 - The workbook is organized into **Dashboard**, **Live Monitor**, **Sessions**, **Customers**, and **Settings** with MSpace black/gold styling, ₱30/hour pricing, no discount, and prorated-per-minute billing.
