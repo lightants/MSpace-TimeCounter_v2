@@ -97,11 +97,13 @@ function snapshot_() {
     };
   });
   const settings = ss.getSheetByName('Settings');
+  const baseRate = Number(settings.getRange('B4').getValue());
+  const adjustment = Number(settings.getRange('B5').getValue());
   return {
     customers: customerMap,
     active: active,
     completed: completed,
-    settings: {baseRate:Number(settings.getRange('B4').getValue()) || 30, adjustment:Number(settings.getRange('B5').getValue()) || 0.1},
+    settings: {baseRate:baseRate > 0 ? baseRate : 30, adjustment:adjustment >= 0 ? adjustment : 0},
     fetchedAt: new Date().toISOString()
   };
 }
