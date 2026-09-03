@@ -11,7 +11,9 @@ const LAST_DATA_ROW = 2000;
 
 function doGet(e) {
   try {
-    return json_({ok: true, ...snapshot_()});
+    const result = snapshot_();
+    result.ok = true;
+    return json_(result);
   } catch (error) {
     return json_({ok: false, error: error.message || String(error)});
   }
@@ -27,7 +29,9 @@ function doPost(e) {
     else if (action === 'checkout') writeCheckOut_(payload.session || {});
     else throw new Error('Unsupported action: ' + action);
     SpreadsheetApp.flush();
-    return json_({ok: true, ...snapshot_()});
+    const result = snapshot_();
+    result.ok = true;
+    return json_(result);
   } catch (error) {
     return json_({ok: false, error: error.message || String(error)});
   } finally {
