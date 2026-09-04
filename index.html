@@ -45,7 +45,8 @@
     .topbar h1 { margin: 5px 0 0; font-size: 21px; letter-spacing: -.04em; }
     .top-actions { display: flex; align-items: center; gap: 14px; }
     .date-chip { color: var(--muted); font-size: 12px; padding-right: 9px; border-right: 1px solid var(--line); }
-    .sync-chip { color: var(--muted); font-size: 11px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 999px; background: #fff; white-space: nowrap; }
+    .sync-chip { color: var(--muted); font-size: 11px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; white-space: nowrap; font-weight: 650; }
+    .sync-chip:disabled { cursor: wait; opacity: .7; }
     .sync-chip.connected { color: var(--green); background: var(--green-soft); border-color: #ccebd9; }
     .sync-chip.warning { color: #986c19; background: var(--gold-soft); border-color: #f1dfb0; }
     .user-chip { display: flex; align-items: center; gap: 8px; font-size: 12px; }
@@ -170,7 +171,7 @@
     <main>
       <header class="topbar">
         <div style="display:flex;align-items:center"><button class="mobile-menu" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button><div><div class="eyebrow">Front desk / live</div><h1>MSpace-Time Counter_v2</h1></div></div>
-        <div class="top-actions"><div class="date-chip" id="today-label"></div><button class="sync-chip" id="sync-now" type="button">Connect Sheets</button><div class="user-chip"><div class="avatar">FD</div><span>Front desk</span></div></div>
+        <div class="top-actions"><div class="date-chip" id="today-label"></div><button class="sync-chip" id="sync-now" type="button" title="Update the app from the shared Google Sheet">Connect Sheets</button><div class="user-chip"><div class="avatar">FD</div><span>Front desk</span></div></div>
       </header>
       <section class="content">
         <div class="welcome"><div><div class="eyebrow">Daily overview</div><h2>Good day, Joy!</h2><p>Tap an RFID card to start or end a customer session.</p></div><button class="ghost-button" id="clear-data">Clear local data</button></div>
@@ -210,7 +211,7 @@
           </section>
         </div>
         <section class="panel report-panel" id="report-panel">
-          <div class="panel-head"><div><h3>Income report</h3><p>Completed sessions · shared Google Sheet when connected</p></div><div class="report-tools"><button class="secondary-button" id="sheets-export">Open Google Sheet</button><button class="primary-button" id="csv-export">Export .CSV</button></div></div>
+          <div class="panel-head"><div><h3>Income report</h3><p>Completed sessions · shared Google Sheet when connected</p></div><div class="report-tools"><button class="secondary-button" id="sync-report" type="button">Sync Sheets</button><button class="secondary-button" id="sheets-export">Open Google Sheet</button><button class="primary-button" id="csv-export">Export .CSV</button></div></div>
           <div class="table-wrap"><table><thead><tr><th>Customer</th><th>RFID UID</th><th>Check-in</th><th>Check-out</th><th>Duration</th><th>Rate</th><th>Amount</th></tr></thead><tbody id="report-body"></tbody></table></div>
         </section>
       </section>
@@ -254,8 +255,8 @@
       $('report-body').innerHTML = todayCompleted.length ? todayCompleted.slice().reverse().map(s => `<tr><td><b>${esc(s.customer.name)}</b><br><span class="muted">${esc(s.customer.email)}</span></td><td class="muted">${esc(s.uid)}</td><td class="muted">${dateTime(s.checkin)}</td><td class="muted">${dateTime(s.checkout)}</td><td>${durationText(s.minutes)}</td><td><span class="tag">${peso(s.rate)}/hr</span></td><td class="amount">${peso(s.amount)}</td></tr>`).join('') : '<tr><td colspan="7"><div class="empty">Completed sessions will appear here.</div></td></tr>';
       document.querySelectorAll('[data-checkout]').forEach(b => b.addEventListener('click', () => checkout(b.dataset.checkout)));
       const syncButton = $('sync-now');
-      const syncStatus = state.sheetEndpoint ? (state.syncError ? 'Sync issue' : (state.lastSyncAt ? 'Synced ' + new Date(state.lastSyncAt).toLocaleTimeString('en-PH', {hour:'numeric', minute:'2-digit'}) : 'Connecting…')) : 'Connect Sheets';
-      syncButton.textContent = syncStatus; syncButton.className = 'sync-chip ' + (state.sheetEndpoint ? (state.syncError ? 'warning' : 'connected') : '');
+      const syncStatus = state.sheetEndpoint ? (syncBusy ? 'Syncing…' : (state.syncError ? 'Sync failed — retry' : 'Sync Sheets')) : 'Connect Sheets';
+      syncButton.textContent = syncStatus; syncButton.className = 'sync-chip ' + (state.sheetEndpoint ? (state.syncError ? 'warning' : 'connected') : ''); syncButton.disabled = !!syncBusy; syncButton.title = state.sheetEndpoint ? (state.syncError || 'Update the app from the shared Google Sheet') : 'Connect this app to the shared Google Sheet';
       $('sidebar-sync-status').textContent = state.sheetEndpoint ? (state.syncError ? 'Google Sheets needs attention' : 'Google Sheets connected') : 'Local data mode';
       $('storage-note').textContent = state.sheetEndpoint ? 'Customer information syncs to the shared MSpace Google Sheet.' : 'Customer information is stored locally until Google Sheets sync is connected.';
     }
@@ -313,12 +314,14 @@
     $('nav-report').addEventListener('click', () => $('report-panel').scrollIntoView({behavior:'smooth'}));
     $('nav-settings').addEventListener('click', () => { const next = prompt('Base hourly rate in PHP', state.baseRate); if (next !== null && !isNaN(next) && Number(next) > 0) { state.baseRate = Number(next); state.adjustment = 0; const staff = prompt('Staff name for reports', state.staffName); if (staff !== null && staff.trim()) state.staffName = staff.trim(); const endpoint = prompt('Google Apps Script Web App URL for realtime sync (leave blank for local mode)', state.sheetEndpoint); if (endpoint !== null) state.sheetEndpoint = endpoint.trim().replace(/\/$/, ''); saveState(); render(); updateRate(); notify(state.sheetEndpoint ? 'Settings saved — connecting to Google Sheets' : 'Settings saved — local mode'); if (state.sheetEndpoint) syncRemote(true); } });
     $('nav-connect').addEventListener('click', () => { const endpoint = prompt('Paste the Google Apps Script Web App URL ending in /exec', state.sheetEndpoint); if (endpoint !== null) { state.sheetEndpoint = endpoint.trim().replace(/\/$/, ''); state.syncError = ''; saveState(); render(); notify(state.sheetEndpoint ? 'Google Sheets connection saved' : 'Google Sheets disconnected'); if (state.sheetEndpoint) syncRemote(true); } });
-    $('sync-now').addEventListener('click', () => state.sheetEndpoint ? syncRemote(true) : $('nav-connect').click());
+    async function manualSync() { if (!state.sheetEndpoint) { $('nav-connect').click(); return; } if (syncBusy) { notify('Sync already in progress'); return; } $('sync-now').disabled = true; $('sync-now').textContent = 'Syncing…'; const reportButton = $('sync-report'); if (reportButton) { reportButton.disabled = true; reportButton.textContent = 'Syncing…'; } await syncRemote(true); render(); }
+    $('sync-now').addEventListener('click', manualSync);
+    $('sync-report').addEventListener('click', manualSync);
     function sessionToPayload(uid, session) { return {sessionId:session.sessionId, uid, customer:session.customer, checkin:session.checkin, checkout:'', minutes:'', status:'Active', staff:session.staff || state.staffName}; }
     function queueSync(operation) { if (!state.sheetEndpoint) return; state.pendingSync = Array.isArray(state.pendingSync) ? state.pendingSync : []; state.pendingSync.push(operation); saveState(); flushPending(); }
     async function postSync(operation) { const response = await fetch(state.sheetEndpoint, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(operation), cache:'no-store'}); if (!response.ok) throw new Error('HTTP ' + response.status); const payload = await response.json(); if (payload.ok === false) throw new Error(payload.error || 'Google Sheets rejected the update'); return payload; }
     async function fetchSnapshot(manual=false) { const response = await fetch(state.sheetEndpoint + '?action=snapshot&ts=' + Date.now(), {cache:'no-store'}); if (!response.ok) throw new Error('HTTP ' + response.status); const payload = await response.json(); if (payload.ok === false) throw new Error(payload.error || 'Google Sheets could not be read'); state.customers = {...state.customers, ...(payload.customers || {})}; state.active = payload.active || {}; state.completed = Array.isArray(payload.completed) ? payload.completed : []; if (payload.settings && Number(payload.settings.baseRate) > 0) state.baseRate = Number(payload.settings.baseRate); if (payload.settings && Number.isFinite(Number(payload.settings.adjustment))) { const discount = Number(payload.settings.adjustment); state.adjustment = discount <= 1 ? discount * 100 : discount; } state.lastSyncAt = new Date().toISOString(); state.syncError = ''; saveState(); render(); updateRate(); if (manual) notify('Google Sheets synced'); }
-    async function flushPending(manual=false) { if (!state.sheetEndpoint || syncBusy) return; syncBusy = true; try { state.pendingSync = Array.isArray(state.pendingSync) ? state.pendingSync : []; while (state.pendingSync.length) { await postSync(state.pendingSync[0]); state.pendingSync.shift(); saveState(); } await fetchSnapshot(manual); } catch (error) { state.syncError = error.message || 'Connection failed'; saveState(); render(); if (manual) notify('Google Sheets sync failed — local data is still safe'); } finally { syncBusy = false; } }
+    async function flushPending(manual=false) { if (!state.sheetEndpoint) return; if (syncBusy) { if (manual) notify('Sync already in progress'); return; } syncBusy = true; try { state.pendingSync = Array.isArray(state.pendingSync) ? state.pendingSync : []; while (state.pendingSync.length) { await postSync(state.pendingSync[0]); state.pendingSync.shift(); saveState(); } await fetchSnapshot(manual); } catch (error) { state.syncError = error.message || 'Connection failed'; saveState(); render(); if (manual) notify('Google Sheets sync failed — local data is still safe'); } finally { syncBusy = false; } }
     function syncRemote(manual=false) { return flushPending(manual); }
     $('today-label').textContent = new Date().toLocaleDateString('en-PH', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
     render(); updateRate(); if (state.sheetEndpoint) syncRemote(); setInterval(() => { render(); if (state.sheetEndpoint) syncRemote(); }, 10000); $('rfid-input').focus();
