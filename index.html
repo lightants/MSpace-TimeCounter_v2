@@ -257,6 +257,7 @@
       const syncButton = $('sync-now');
       const syncStatus = state.sheetEndpoint ? (syncBusy ? 'Syncing…' : (state.syncError ? 'Sync failed — retry' : 'Sync Sheets')) : 'Connect Sheets';
       syncButton.textContent = syncStatus; syncButton.className = 'sync-chip ' + (state.sheetEndpoint ? (state.syncError ? 'warning' : 'connected') : ''); syncButton.disabled = !!syncBusy; syncButton.title = state.sheetEndpoint ? (state.syncError || 'Update the app from the shared Google Sheet') : 'Connect this app to the shared Google Sheet';
+      const reportSyncButton = $('sync-report'); if (reportSyncButton) { reportSyncButton.textContent = syncBusy ? 'Syncing…' : 'Sync Sheets'; reportSyncButton.disabled = !!syncBusy; }
       $('sidebar-sync-status').textContent = state.sheetEndpoint ? (state.syncError ? 'Google Sheets needs attention' : 'Google Sheets connected') : 'Local data mode';
       $('storage-note').textContent = state.sheetEndpoint ? 'Customer information syncs to the shared MSpace Google Sheet.' : 'Customer information is stored locally until Google Sheets sync is connected.';
     }
