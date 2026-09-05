@@ -27,6 +27,7 @@ function doPost(e) {
     const action = payload.action;
     if (action === 'upsertSession') writeCheckIn_(payload.session || {});
     else if (action === 'checkout') writeCheckOut_(payload.session || {});
+    else if (action === 'deleteSession') deleteSession_(payload.session || {});
     else throw new Error('Unsupported action: ' + action);
     SpreadsheetApp.flush();
     const result = snapshot_();
@@ -64,6 +65,18 @@ function writeCheckOut_(session) {
   const minutes = Math.max(1, Number(session.minutes) || Math.ceil((checkout - sessions.getRange(row, 9).getValue()) / 60000));
   sessions.getRange(row, 10, 1, 2).setValues([[checkout, minutes]]);
   sessions.getRange(row, 16, 1, 2).setValues([['Paid', session.staff || 'Front desk']]);
+}
+
+function deleteSession_(session) {
+  if (!session.sessionId) throw new Error('Delete is missing the session ID.');
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const sessions = ss.getSheetByName('Sessions');
+  const row = findRow_(sessions, 1, session.sessionId);
+  if (!row) return;
+  if (String(sessions.getRange(row, 16).getValue() || '').toUpperCase() === 'ACTIVE') throw new Error('Active sessions cannot be deleted from the income report.');
+  // Clear the record instead of deleting the physical row so the Sessions ARRAYFORMULA columns remain intact.
+  sessions.getRange(row, 1, 1, 11).clearContent();
+  sessions.getRange(row, 16, 1, 2).clearContent();
 }
 
 function upsertCustomer_(sheet, uid, customer, timestamp) {

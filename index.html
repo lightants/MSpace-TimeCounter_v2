@@ -122,6 +122,8 @@
     .report-panel { margin-top: 18px; }
     .report-tools { display: flex; align-items: center; gap: 8px; }
     .report-tools button { padding: 7px 10px; font-size: 10px; }
+    .delete-session { border: 1px solid #f0d3cf; border-radius: 6px; padding: 5px 8px; background: #fff7f5; color: var(--red); font-size: 10px; font-weight: 650; }
+    .delete-session:hover { border-color: #dfaaa3; background: #fff0ed; }
     .table-wrap { overflow-x: auto; }
     table { border-collapse: collapse; width: 100%; min-width: 680px; }
     th { text-align: left; padding: 11px 20px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; background: #fcfbf8; }
@@ -213,7 +215,7 @@
         </div>
         <section class="panel report-panel" id="report-panel">
           <div class="panel-head"><div><h3>Income report</h3><p>Completed sessions · shared Google Sheet when connected</p></div><div class="report-tools"><button class="secondary-button" id="sync-report" type="button">Sync Sheets</button><button class="secondary-button" id="sheets-export">Open Google Sheet</button><button class="primary-button" id="csv-export">Export .CSV</button></div></div>
-          <div class="table-wrap"><table><thead><tr><th>Customer</th><th>RFID UID</th><th>Check-in</th><th>Check-out</th><th>Duration</th><th>Rate</th><th>Amount</th></tr></thead><tbody id="report-body"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Customer</th><th>RFID UID</th><th>Check-in</th><th>Check-out</th><th>Duration</th><th>Rate</th><th>Amount</th><th>Action</th></tr></thead><tbody id="report-body"></tbody></table></div>
         </section>
       </section>
     </main>
@@ -253,8 +255,9 @@
       const total = todayCompleted.reduce((a,x) => a + x.amount, 0);
       $('income-total').textContent = peso(total); $('active-total').textContent = activeEntries.length; $('session-total').textContent = todayCompleted.length + activeEntries.filter(([_,x]) => isToday(x.checkin)).length; $('average-total').textContent = peso(todayCompleted.length ? total / todayCompleted.length : 0); $('income-sub').textContent = todayCompleted.length + ' completed ' + (todayCompleted.length === 1 ? 'session' : 'sessions'); $('active-pill').textContent = activeEntries.length + ' active';
       $('active-list').innerHTML = activeEntries.length ? activeEntries.map(([uid, s]) => `<div class="session-row"><div class="person"><div class="person-avatar">${initials(s.customer.name)}</div><div><b>${esc(s.customer.name)}</b><span>${esc(uid)} · ${s.customer.type}</span></div></div><div><span class="status">● Active</span><span class="sub">${dateTime(s.checkin)}</span></div><div><b>${durationText(durationMinutes(s.checkin))}</b><span class="sub">${peso(rateFor(s.customer.type))}/hr</span></div><button class="checkout" data-checkout="${esc(uid)}">Check out</button></div>`).join('') : '<div class="empty">No active sessions. Scan a card to check someone in.</div>';
-      $('report-body').innerHTML = todayCompleted.length ? todayCompleted.slice().reverse().map(s => `<tr><td><b>${esc(s.customer.name)}</b><br><span class="muted">${esc(s.customer.email)}</span></td><td class="muted">${esc(s.uid)}</td><td class="muted">${dateTime(s.checkin)}</td><td class="muted">${dateTime(s.checkout)}</td><td>${durationText(s.minutes)}</td><td><span class="tag">${peso(s.rate)}/hr</span></td><td class="amount">${peso(s.amount)}</td></tr>`).join('') : '<tr><td colspan="7"><div class="empty">Completed sessions will appear here.</div></td></tr>';
+      $('report-body').innerHTML = todayCompleted.length ? todayCompleted.slice().reverse().map(s => `<tr><td><b>${esc(s.customer.name)}</b><br><span class="muted">${esc(s.customer.email)}</span></td><td class="muted">${esc(s.uid)}</td><td class="muted">${dateTime(s.checkin)}</td><td class="muted">${dateTime(s.checkout)}</td><td>${durationText(s.minutes)}</td><td><span class="tag">${peso(s.rate)}/hr</span></td><td class="amount">${peso(s.amount)}</td><td><button class="delete-session" type="button" data-delete-session="${esc(s.sessionId)}">Delete</button></td></tr>`).join('') : '<tr><td colspan="8"><div class="empty">Completed sessions will appear here.</div></td></tr>';
       document.querySelectorAll('[data-checkout]').forEach(b => b.addEventListener('click', () => checkout(b.dataset.checkout)));
+      document.querySelectorAll('[data-delete-session]').forEach(b => b.addEventListener('click', () => deleteCompletedSession(b.dataset.deleteSession)));
       const syncButton = $('sync-now');
       const syncStatus = state.sheetEndpoint ? (syncBusy ? 'Syncing…' : (state.syncError ? 'Sync failed — retry' : 'Sync Sheets')) : 'Connect Sheets';
       syncButton.textContent = syncStatus; syncButton.className = 'sync-chip ' + (state.sheetEndpoint ? (state.syncError ? 'warning' : 'connected') : ''); syncButton.disabled = !!syncBusy; syncButton.title = state.sheetEndpoint ? (state.syncError || 'Update the app from the shared Google Sheet') : 'Connect this app to the shared Google Sheet';
@@ -301,6 +304,7 @@
       const completedSession = { sessionId:active.sessionId || ('MSPACE-' + active.checkin + '-' + uid), uid, customer: active.customer, checkin: active.checkin, checkout: checkoutAt, minutes, rate, amount, staff:active.staff || state.staffName }; state.completed.push(completedSession); delete state.active[uid]; saveState(); render(); queueSync({action:'checkout', session:{sessionId:completedSession.sessionId, uid, checkout:checkoutAt, minutes, amount, staff:completedSession.staff}}); notify(active.customer.name + ' checked out · ' + peso(amount)); showPaymentModal(completedSession);
       resetCustomerForm(); setScanMode('checkin', false);
     }
+    function deleteCompletedSession(sessionId) { const index = state.completed.findIndex(x => x.sessionId === sessionId); if (index < 0) return; const session = state.completed[index]; if (!confirm('Delete this income record for ' + session.customer.name + ' (' + peso(session.amount) + ')? This cannot be undone.')) return; state.completed.splice(index, 1); saveState(); render(); queueSync({action:'deleteSession', session:{sessionId:session.sessionId}}); notify(state.sheetEndpoint ? 'Income record deleted — syncing Google Sheets' : 'Income record deleted locally'); }
     function updateRate() { const type = $('type').value, isAdjusted = state.adjustment > 0 && (type === 'student' || type === 'teacher'); $('applied-rate').textContent = peso(rateFor(type)) + ' / hour'; $('adjustment-label').textContent = isAdjusted ? type[0].toUpperCase() + type.slice(1) + ' rate · -' + state.adjustment + '% discount' : 'Standard rate'; }
     $('rfid-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleScan(e.target.value); });
     $('checkin-action').addEventListener('click', () => setScanMode('checkin'));
