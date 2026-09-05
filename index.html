@@ -188,7 +188,8 @@
               <div class="scan-box"><div class="rfid-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 8.5a9 9 0 0 0 0 7M8 10.5a5 5 0 0 0 0 3M11 12a1 1 0 0 0 0 0"/><path d="M15 8.5a9 9 0 0 1 0 7M18 6a13 13 0 0 1 0 12"/></svg></div><input id="rfid-input" autocomplete="off" placeholder="Select Check-in or Check-out, then tap RFID" /></div>
               <div class="scan-actions"><button class="primary-button selected" id="checkin-action">Check-in</button><button class="secondary-button" id="checkout-action">Check-out</button></div>
               <div class="scan-note" id="scan-note">Check-in selected. Tap an RFID card to start a session.</div>
-              <div class="manual-time-control" id="manual-time-control"><label><input id="manual-checkin-toggle" type="checkbox" /> Use manual check-in time</label><input id="manual-checkin-time" type="datetime-local" /><div class="manual-time-help">Use only to correct a timer issue. The selected time must be in the past.</div></div>
+              <div class="manual-time-control" id="manual-checkin-control"><label><input id="manual-checkin-toggle" type="checkbox" /> Use manual check-in date and time</label><input id="manual-checkin-time" type="datetime-local" /><div class="manual-time-help">Use this to recreate a missing or incorrect check-in. The selected time must be in the past.</div></div>
+              <div class="manual-time-control" id="manual-checkout-control"><label><input id="manual-checkout-toggle" type="checkbox" /> Use manual check-out date and time</label><input id="manual-checkout-time" type="datetime-local" /><div class="manual-time-help">Use this to recreate a missing or incorrect checkout. The selected time must be after check-in and in the past.</div></div>
               <div class="live-list"><div class="list-title"><h4>Currently checked in</h4><span class="count-pill" id="active-pill">0 active</span></div><div id="active-list"></div></div>
             </div>
           </section>
@@ -273,14 +274,18 @@
       scanMode = mode; $('checkin-action').classList.toggle('selected', mode === 'checkin'); $('checkout-action').classList.toggle('selected', mode === 'checkout');
       $('scan-note').textContent = mode === 'checkin' ? 'Check-in selected. Tap an RFID card to start a session.' : 'Check-out selected. Tap an active RFID card to calculate the amount.';
       $('rfid-input').placeholder = mode === 'checkin' ? 'Scan RFID card or enter UID to check in' : 'Scan RFID card or enter UID to check out';
-      $('manual-time-control').style.display = mode === 'checkin' ? 'block' : 'none';
+      $('manual-checkin-control').style.display = mode === 'checkin' ? 'block' : 'none';
+      $('manual-checkout-control').style.display = mode === 'checkout' ? 'block' : 'none';
       if (mode === 'checkout') resetManualCheckin();
+      else resetManualCheckout();
       if (announce) { notify(mode === 'checkin' ? 'Check-in ready' : 'Check-out ready'); $('rfid-input').focus(); }
     }
     function localDateTimeValue(date = new Date()) { const adjusted = new Date(date.getTime() - date.getTimezoneOffset() * 60000); return adjusted.toISOString().slice(0,16); }
-    function resetManualCheckin() { $('manual-checkin-toggle').checked = false; $('manual-checkin-time').value = ''; $('manual-time-control').classList.remove('enabled'); $('manual-checkin-time').max = localDateTimeValue(); }
+    function resetManualCheckin() { $('manual-checkin-toggle').checked = false; $('manual-checkin-time').value = ''; $('manual-checkin-control').classList.remove('enabled'); $('manual-checkin-time').max = localDateTimeValue(); }
+    function resetManualCheckout() { $('manual-checkout-toggle').checked = false; $('manual-checkout-time').value = ''; $('manual-checkout-control').classList.remove('enabled'); $('manual-checkout-time').max = localDateTimeValue(); }
     function selectedCheckinTime() { if (!$('manual-checkin-toggle').checked) return new Date().toISOString(); $('manual-checkin-time').max = localDateTimeValue(); const value = $('manual-checkin-time').value; if (!value) { notify('Choose the manual check-in date and time'); $('manual-checkin-time').focus(); return null; } const parsed = new Date(value); if (Number.isNaN(parsed.getTime()) || parsed > new Date()) { notify('Manual check-in time must be valid and in the past'); $('manual-checkin-time').focus(); return null; } return parsed.toISOString(); }
-    function resetCustomerForm() { selectedUid = ''; $('customer-form').reset(); resetManualCheckin(); $('uid-label').textContent = 'No UID'; $('form-heading').textContent = 'New customer'; $('form-subheading').textContent = 'Register a card to begin a session'; $('form-tip').textContent = 'Scan an RFID card to get started'; updateRate(); }
+    function selectedCheckoutTime(checkin) { if (!$('manual-checkout-toggle').checked) return new Date().toISOString(); $('manual-checkout-time').max = localDateTimeValue(); const value = $('manual-checkout-time').value; if (!value) { notify('Choose the manual check-out date and time'); $('manual-checkout-time').focus(); return null; } const parsed = new Date(value), start = new Date(checkin); if (Number.isNaN(parsed.getTime()) || parsed > new Date()) { notify('Manual check-out time must be valid and in the past'); $('manual-checkout-time').focus(); return null; } if (parsed <= start) { notify('Manual check-out must be after check-in'); $('manual-checkout-time').focus(); return null; } return parsed.toISOString(); }
+    function resetCustomerForm() { selectedUid = ''; $('customer-form').reset(); resetManualCheckin(); resetManualCheckout(); $('uid-label').textContent = 'No UID'; $('form-heading').textContent = 'New customer'; $('form-subheading').textContent = 'Register a card to begin a session'; $('form-tip').textContent = 'Scan an RFID card to get started'; updateRate(); }
     function handleScan(raw) {
       const uid = raw.trim().toUpperCase(); if (!uid) return;
       $('rfid-input').value = '';
@@ -292,7 +297,7 @@
     function startSession(uid, customer) { const checkin = selectedCheckinTime(); if (!checkin) return; const session = { sessionId:'MSPACE-' + Date.now() + '-' + uid, customer, checkin, staff:state.staffName }; state.active[uid] = session; saveState(); render(); queueSync({action:'upsertSession', session:sessionToPayload(uid, session)}); notify(customer.name + ' checked in — timer started'); resetCustomerForm(); $('rfid-input').focus(); }
     function checkout(uid) {
       const active = state.active[uid]; if (!active) return;
-      const checkoutAt = new Date().toISOString(), minutes = durationMinutes(active.checkin, checkoutAt), rate = rateFor(active.customer.type), amount = Math.round(rate * minutes / 60 * 100) / 100;
+      const checkoutAt = selectedCheckoutTime(active.checkin); if (!checkoutAt) return; const minutes = durationMinutes(active.checkin, checkoutAt), rate = rateFor(active.customer.type), amount = Math.round(rate * minutes / 60 * 100) / 100;
       const completedSession = { sessionId:active.sessionId || ('MSPACE-' + active.checkin + '-' + uid), uid, customer: active.customer, checkin: active.checkin, checkout: checkoutAt, minutes, rate, amount, staff:active.staff || state.staffName }; state.completed.push(completedSession); delete state.active[uid]; saveState(); render(); queueSync({action:'checkout', session:{sessionId:completedSession.sessionId, uid, checkout:checkoutAt, minutes, amount, staff:completedSession.staff}}); notify(active.customer.name + ' checked out · ' + peso(amount)); showPaymentModal(completedSession);
       resetCustomerForm(); setScanMode('checkin', false);
     }
@@ -300,7 +305,8 @@
     $('rfid-input').addEventListener('keydown', e => { if (e.key === 'Enter') handleScan(e.target.value); });
     $('checkin-action').addEventListener('click', () => setScanMode('checkin'));
     $('checkout-action').addEventListener('click', () => setScanMode('checkout'));
-    $('manual-checkin-toggle').addEventListener('change', e => $('manual-time-control').classList.toggle('enabled', e.target.checked));
+    $('manual-checkin-toggle').addEventListener('change', e => $('manual-checkin-control').classList.toggle('enabled', e.target.checked));
+    $('manual-checkout-toggle').addEventListener('change', e => $('manual-checkout-control').classList.toggle('enabled', e.target.checked));
     $('close-payment-modal').addEventListener('click', hidePaymentModal);
     $('payment-modal').addEventListener('click', e => { if (e.target.id === 'payment-modal') hidePaymentModal(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('payment-modal').classList.contains('show')) hidePaymentModal(); });
@@ -325,7 +331,7 @@
     async function flushPending(manual=false) { if (!state.sheetEndpoint) return; if (syncBusy) { if (manual) notify('Sync already in progress'); return; } syncBusy = true; try { state.pendingSync = Array.isArray(state.pendingSync) ? state.pendingSync : []; while (state.pendingSync.length) { await postSync(state.pendingSync[0]); state.pendingSync.shift(); saveState(); } await fetchSnapshot(manual); } catch (error) { state.syncError = error.message || 'Connection failed'; saveState(); render(); if (manual) notify('Google Sheets sync failed — local data is still safe'); } finally { syncBusy = false; } }
     function syncRemote(manual=false) { return flushPending(manual); }
     $('today-label').textContent = new Date().toLocaleDateString('en-PH', {weekday:'short', month:'short', day:'numeric', year:'numeric'});
-    render(); updateRate(); if (state.sheetEndpoint) syncRemote(); setInterval(() => { render(); if (state.sheetEndpoint) syncRemote(); }, 10000); $('rfid-input').focus();
+    render(); updateRate(); setScanMode('checkin', false); if (state.sheetEndpoint) syncRemote(); setInterval(() => { render(); if (state.sheetEndpoint) syncRemote(); }, 10000); $('rfid-input').focus();
   </script>
 </body>
 </html>
